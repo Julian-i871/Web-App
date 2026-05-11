@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dual N-Back Mobile</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --grid-color: #ffffff;
+            --active-color: #3498db;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Grid Layout: 3x3 (Mitte bleibt leer für 8 Boxen Effekt oder wir nutzen 2x4) */
+        /* Hier nutzen wir 8 Boxen in einem 3x3 Raster, wobei die Mitte leer bleibt */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .cell {
+            background-color: var(--grid-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.1s;
+        }
+
+        .cell.active { background-color: var(--active-color); }
+        .cell.center-hole { visibility: hidden; }
+
+        /* Steuerung */
+        .controls {
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .match-btn {
+            flex: 1;
+            background-color: #ecf0f1;
+            color: var(--text-color);
+        }
+
+        .match-btn:active { background-color: #bdc3c7; }
+
+        .start-btn {
+            background-color: #2ecc71;
+            color: white;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .settings {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        #letter-display {
+            position: absolute;
+            font-size: 48px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="letter-display"></div>
+
+    <div class="grid" id="grid">
+        <div class="cell" id="c0"></div>
+        <div class="cell" id="c1"></div>
+        <div class="cell" id="c2"></div>
+        <div class="cell" id="c3"></div>
+        <div class="cell center-hole"></div> <!-- Mitte leer für 8-Boxen-Optik -->
+        <div class="cell" id="c4"></div>
+        <div class="cell" id="c5"></div>
+        <div class="cell" id="c6"></div>
+        <div class="cell" id="c7"></div>
+    </div>
+
+    <div class="controls">
+        <div class="settings">
+            <label>N: <input type="number" id="n-val" value="2" min="1" style="width:40px"></label>
+            <label>Zeit (s): <input type="number" id="time-val" value="2.5" step="0.5" min="1" style="width:50px"></label>
+        </div>
+
+        <button class="start-btn" id="start-stop">Start</button>
+
+        <div class="btn-group">
+            <button class="match-btn" id="pos-match">Position</button>
+            <button class="match-btn" id="audio-match">Buchstabe</button>
+        </div>
+    </div>
+
+    <script>
+        const cells = document.querySelectorAll('.cell:not(.center-hole)');
+        const startBtn = document.getElementById('start-stop');
+        const posBtn = document.getElementById('pos-match');
+        const audioBtn = document.getElementById('audio-match');
+        
+        const letters = "BCDFGHJKLMNPQRSTVWXYZ".split(""); 
+        let history = [];
+        let n = 2;
+        let intervalTime = 2500;
+        let gameActive = false;
+        let timer;
+        
+        // Sprachausgabe Initialisierung
+        const synth = window.speechSynthesis;
+        let englishVoice = null;
+
+        // Stimme laden (muss oft asynchron passieren)
+        function loadVoices() {
+            englishVoice = synth.getVoices().find(v => v.lang.startsWith('en'));
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+        
+        function speak(text) {
+            if (synth.speaking) synth.cancel(); // Vorherige Ansage abbrechen
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.voice = englishVoice;
+            utter.lang = 'en-US';
+            utter.rate = 1.0;
+            synth.speak(utter);
+        }
+        
+        function playTurn() {
+            const pos = Math.floor(Math.random() * 8);
+            const letIdx = Math.floor(Math.random() * letters.length);
+            const letter = letters[letIdx];
+        
+            history.push({ pos, letter });
+        
+            // Visueller Reiz (Position)
+            cells[pos].classList.add('active');
+            
+            // Auditiver Reiz (Sprachausgabe)
+            speak(letter);
+        
+            setTimeout(() => {
+                cells[pos].classList.remove('active');
+            }, 800);
+        }
+        
+        function checkMatch(type) {
+            if (history.length <= n) return;
+            const current = history[history.length - 1];
+            const target = history[history.length - 1 - n];
+        
+            // Kurzes haptisches Feedback oder Konsolen-Log (iPhone unterstützt Vibration via JS nur begrenzt)
+            if (type === 'pos') {
+                const isMatch = current.pos === target.pos;
+                console.log(isMatch ? "Position Match!" : "Falsch");
+                posBtn.style.backgroundColor = isMatch ? "#2ecc71" : "#e74c3c";
+            } else {
+                const isMatch = current.letter === target.letter;
+                console.log(isMatch ? "Audio Match!" : "Falsch");
+                audioBtn.style.backgroundColor = isMatch ? "#2ecc71" : "#e74c3c";
+            }
+            
+            setTimeout(() => {
+                posBtn.style.backgroundColor = "";
+                audioBtn.style.backgroundColor = "";
+            }, 300);
+        }
+        
+        startBtn.addEventListener('click', () => {
+            if (gameActive) {
+                clearInterval(timer);
+                startBtn.innerText = "Start";
+                history = [];
+            } else {
+                // iPhone braucht eine Benutzerinteraktion, um Audio zu erlauben
+                speak(""); 
+                n = parseInt(document.getElementById('n-val').value);
+                intervalTime = parseFloat(document.getElementById('time-val').value) * 1000;
+                startBtn.innerText = "Stop";
+                playTurn();
+                timer = setInterval(playTurn, intervalTime);
+            }
+            gameActive = !gameActive;
+        });
+        
+        posBtn.addEventListener('click', () => checkMatch('pos'));
+        audioBtn.addEventListener('click', () => checkMatch('audio'));
+    </script>
+</body>
+</html>

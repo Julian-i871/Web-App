@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>DLR Pilot Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #13161b;
+    --surface2: #1c2028;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --accent: #00e5a0;
+    --accent2: #0098ff;
+    --danger: #ff4d6d;
+    --warn: #ffb700;
+    --text: #f0f2f5;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+  /* === SCREENS === */
+  .screen { position: absolute; inset: 0; overflow-y: auto; padding: env(safe-area-inset-top, 16px) 0 env(safe-area-inset-bottom, 16px); display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* === HOME === */
+  .home-header { padding: 24px 20px 8px; }
+  .home-eyebrow { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+  .home-title { font-size: 28px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; }
+  .home-title span { color: var(--accent); }
+
+  .difficulty-row { display: flex; gap: 8px; padding: 16px 20px 8px; }
+  .diff-btn {
+    flex: 1; padding: 10px 6px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted2); font-family: var(--mono); font-size: 12px;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .diff-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.07); }
+
+  .section-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; padding: 12px 20px 8px; }
+
+  .module-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+
+  .module-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 14px;
+    position: relative; overflow: hidden;
+  }
+  .module-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    border-radius: 2px 0 0 2px;
+  }
+  .module-card.cat-math::before { background: var(--accent2); }
+  .module-card.cat-react::before { background: var(--danger); }
+  .module-card.cat-mem::before { background: var(--accent); }
+  .module-card.cat-raum::before { background: #a78bfa; }
+  .module-card.cat-tech::before { background: var(--warn); }
+  .module-card.cat-konz::before { background: #f472b6; }
+  .module-card.locked { opacity: 0.45; cursor: default; }
+  .module-card:not(.locked):active { transform: scale(0.98); background: var(--surface2); }
+
+  .module-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .cat-math .module-icon { background: rgba(0,152,255,0.12); }
+  .cat-react .module-icon { background: rgba(255,77,109,0.12); }
+  .cat-mem .module-icon { background: rgba(0,229,160,0.12); }
+  .cat-raum .module-icon { background: rgba(167,139,250,0.12); }
+  .cat-tech .module-icon { background: rgba(255,183,0,0.12); }
+  .cat-konz .module-icon { background: rgba(244,114,182,0.12); }
+
+  .module-info { flex: 1; min-width: 0; }
+  .module-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .module-desc { font-size: 12px; color: var(--muted2); margin-top: 3px; line-height: 1.4; }
+  .module-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .module-best { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .lock-badge { font-size: 14px; }
+  .coming-badge { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.05em; }
+
+  /* === STATS SCREEN === */
+  .stats-header { padding: 20px 20px 8px; display: flex; align-items: center; gap: 12px; }
+  .back-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border2); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; flex-shrink: 0; }
+  .back-btn:active { transform: scale(0.92); }
+  .screen-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 16px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .stat-val { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--accent); }
+  .stat-lbl { font-size: 12px; color: var(--muted2); margin-top: 4px; }
+
+  .history-section { padding: 0 16px; }
+  .history-item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .history-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .history-name { font-size: 13px; font-weight: 600; }
+  .history-meta { font-size: 11px; color: var(--muted2); font-family: var(--mono); margin-top: 2px; }
+  .history-score { font-family: var(--mono); font-size: 14px; color: var(--accent); margin-left: auto; }
+
+  /* === TRAINING SCREEN === */
+  .training-header { padding: 16px 20px 0; display: flex; align-items: center; gap: 12px; }
+  .training-title { font-size: 17px; font-weight: 700; flex: 1; }
+  .diff-chip { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 4px 8px; border-radius: 20px; background: var(--surface2); color: var(--muted2); }
+
+  .progress-bar-wrap { padding: 12px 20px 0; }
+  .progress-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+
+  .training-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+
+  /* Round indicator */
+  .round-info { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+
+  /* MATH EXERCISE */
+  .math-problem { font-family: var(--mono); font-size: 48px; font-weight: 500; text-align: center; letter-spacing: -0.02em; margin-bottom: 32px; line-height: 1.2; }
+  .math-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 320px; }
+  .option-btn {
+    padding: 18px; border-radius: var(--radius); border: 1px solid var(--border2);
+    background: var(--surface); font-family: var(--mono); font-size: 22px; font-weight: 500;
+    color: var(--text); cursor: pointer; transition: all 0.12s; text-align: center;
+  }
+  .option-btn:active { transform: scale(0.97); }
+  .option-btn.correct { border-color: var(--accent); background: rgba(0,229,160,0.12); color: var(--accent); }
+  .option-btn.wrong { border-color: var(--danger); background: rgba(255,77,109,0.1); color: var(--danger); }
+
+  /* REACTION EXERCISE */
+  .reaction-area {
+    width: 240px; height: 240px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.1s; flex-direction: column; gap: 8px;
+    user-select: none;
+  }
+  .reaction-area.wait { border-color: var(--warn); background: rgba(255,183,0,0.05); }
+  .reaction-area.go   { border-color: var(--accent); background: rgba(0,229,160,0.12); cursor: pointer; }
+  .reaction-area.too-early { border-color: var(--danger); background: rgba(255,77,109,0.08); }
+  .reaction-area.result { border-color: var(--accent2); background: rgba(0,152,255,0.08); }
+  .reaction-label { font-family: var(--mono); font-size: 14px; color: var(--muted2); text-align: center; padding: 0 20px; }
+  .reaction-time { font-family: var(--mono); font-size: 48px; font-weight: 500; color: var(--accent); }
+  .reaction-unit { font-family: var(--mono); font-size: 14px; color: var(--muted2); }
+
+  /* DIGIT SPAN */
+  .digit-display { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 36px; min-height: 80px; align-items: center; }
+  .digit-cell {
+    width: 56px; height: 68px; border-radius: 10px; border: 1px solid var(--border2);
+    background: var(--surface2); display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 32px; font-weight: 500; transition: all 0.2s;
+  }
+  .digit-cell.show { border-color: var(--accent2); background: rgba(0,152,255,0.1); color: var(--accent2); }
+  .digit-cell.hidden-cell { color: transparent; }
+  .digit-cell.correct-cell { border-color: var(--accent); background: rgba(0,229,160,0.1); color: var(--accent); }
+  .digit-cell.wrong-cell { border-color: var(--danger); background: rgba(255,77,109,0.08); color: var(--danger); }
+
+  .digit-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 280px; }
+  .key-btn {
+    padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); font-family: var(--mono); font-size: 20px;
+    color: var(--text); cursor: pointer; transition: all 0.1s; text-align: center;
+  }
+  .key-btn:active { transform: scale(0.94); background: var(--surface2); }
+  .key-btn.del { color: var(--danger); font-size: 18px; }
+
+  /* FEEDBACK / RESULT overlay */
+  .feedback-overlay {
+    position: absolute; inset: 0; background: rgba(10,12,15,0.88);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; backdrop-filter: blur(6px); z-index: 10; padding: 32px;
+  }
+  .feedback-icon { font-size: 56px; }
+  .feedback-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .feedback-sub { font-size: 14px; color: var(--muted2); text-align: center; line-height: 1.6; max-width: 280px; }
+  .feedback-explanation { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px 16px; width: 100%; max-width: 300px; margin-top: 4px; }
+  .explanation-label { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .explanation-text { font-size: 13px; color: var(--muted2); line-height: 1.6; }
+
+  .primary-btn {
+    padding: 14px 32px; border-radius: 100px; background: var(--accent);
+    color: #000; font-family: var(--sans); font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer; transition: all 0.12s; letter-spacing: -0.01em;
+    margin-top: 8px;
+  }
+  .primary-btn:active { transform: scale(0.96); }
+  .secondary-btn {
+    padding: 12px 24px; border-radius: 100px; background: transparent;
+    color: var(--muted2); font-family: var(--sans); font-size: 14px;
+    border: 1px solid var(--border2); cursor: pointer; transition: all 0.12s;
+  }
+  .secondary-btn:active { transform: scale(0.96); }
+
+  /* FINAL SCORE */
+  .score-big { font-family: var(--mono); font-size: 72px; font-weight: 500; color: var(--accent); letter-spacing: -0.04em; }
+  .score-label { font-size: 13px; color: var(--muted2); }
+  .score-stats { display: flex; gap: 24px; margin: 16px 0; }
+  .score-stat { text-align: center; }
+  .score-stat-val { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+  .score-stat-lbl { font-size: 11px; color: var(--muted2); margin-top: 2px; }
+
+  /* TIMER */
+  .timer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .timer-display { font-family: var(--mono); font-size: 14px; color: var(--muted2); }
+  .timer-bar { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .timer-fill { height: 100%; background: var(--accent2); border-radius: 2px; transition: width 0.1s linear; }
+  .timer-fill.urgent { background: var(--danger); }
+
+  /* STREAK */
+  .streak-row { display: flex; gap: 4px; margin-bottom: 20px; }
+  .streak-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface2); transition: background 0.2s; }
+  .streak-dot.correct { background: var(--accent); }
+  .streak-dot.wrong { background: var(--danger); }
+
+  /* NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(10,12,15,0.9); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border); display: flex;
+    padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; cursor: pointer; }
+  .nav-icon { font-size: 22px; }
+  .nav-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .nav-item.active .nav-label { color: var(--accent); }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--accent)); }
+
+  .padded-bottom { padding-bottom: 80px; }
+
+  /* Animate in */
+  @keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: none; } }
+  .module-card { animation: fadeUp 0.3s ease both; }
+  .module-card:nth-child(1) { animation-delay: 0.03s; }
+  .module-card:nth-child(2) { animation-delay: 0.06s; }
+  .module-card:nth-child(3) { animation-delay: 0.09s; }
+  .module-card:nth-child(4) { animation-delay: 0.12s; }
+  .module-card:nth-child(5) { animation-delay: 0.15s; }
+  .module-card:nth-child(6) { animation-delay: 0.18s; }
+  .module-card:nth-child(7) { animation-delay: 0.21s; }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div class="screen active padded-bottom" id="screen-home">
+  <div class="home-header">
+    <div class="home-eyebrow">DLR Selektion · Verkehrspilotenlizenz</div>
+    <h1 class="home-title">Pilot<span>Training</span></h1>
+  </div>
+
+  <div class="difficulty-row">
+    <button class="diff-btn active" onclick="setDiff('easy')">Easy</button>
+    <button class="diff-btn" onclick="setDiff('medium')">Medium</button>
+    <button class="diff-btn" onclick="setDiff('hard')">Hard</button>
+  </div>
+
+  <div class="section-label">Verfügbare Trainings</div>
+  <div class="module-list" id="module-list"></div>
+</div>
+
+<!-- STATS SCREEN -->
+<div class="screen padded-bottom" id="screen-stats">
+  <div class="stats-header">
+    <div class="back-btn" onclick="showScreen('home')">←</div>
+    <div class="screen-title">Statistiken</div>
+  </div>
+  <div class="stats-grid" id="stats-grid"></div>
+  <div class="section-label" style="padding-top:4px">Verlauf</div>
+  <div class="history-section" id="history-list"></div>
+</div>
+
+<!-- TRAINING SCREEN -->
+<div class="screen" id="screen-training">
+  <div class="training-header">
+    <div class="back-btn" id="training-back">←</div>
+    <div class="training-title" id="training-title"></div>
+    <div class="diff-chip" id="training-diff-chip"></div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+  <div class="training-body" id="training-body"></div>
+</div>
+
+<!-- NAV -->
+<div class="bottom-nav" id="bottom-nav">
+  <div class="nav-item active" id="nav-home" onclick="showScreen('home')">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">Training</div>
+  </div>
+  <div class="nav-item" id="nav-stats" onclick="showScreen('stats')">
+    <div class="nav-icon">📊</div>
+    <div class="nav-label">Statistik</div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+let difficulty = 'easy';
+let currentModule = null;
+let sessionState = {};
+
+const STORAGE_KEY = 'dlr_pilot_v1';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { history: [], bests: {} }; }
+  catch { return { history: [], bests: {} }; }
+}
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+// =============================================
+// MODULE REGISTRY
+// Each module: { id, name, desc, icon, cat, available, engine }
+// engine: { start(difficulty, body, onDone), totalRounds }
+// =============================================
+const MODULES = [
+  {
+    id: 'math',
+    name: 'Kopfrechnen',
+    desc: 'Rechenaufgaben unter Zeitdruck lösen',
+    icon: '🔢',
+    cat: 'math',
+    available: true,
+    engine: mathEngine()
+  },
+  {
+    id: 'reaction',
+    name: 'Reaktionstest',
+    desc: 'So schnell wie möglich auf das Signal reagieren',
+    icon: '⚡',
+    cat: 'react',
+    available: true,
+    engine: reactionEngine()
+  },
+  {
+    id: 'digitspan',
+    name: 'Zahlenspanne',
+    desc: 'Ziffernfolgen merken und wiedergeben',
+    icon: '🧠',
+    cat: 'mem',
+    available: true,
+    engine: digitSpanEngine()
+  },
+  {
+    id: 'mental_rotation',
+    name: 'Mentale Rotation',
+    desc: 'Figuren im Raum erkennen und vergleichen',
+    icon: '🔄',
+    cat: 'raum',
+    available: false
+  },
+  {
+    id: 'numberseq',
+    name: 'Zahlenreihen',
+    desc: 'Fehlende Zahl in einer Folge finden',
+    icon: '📈',
+    cat: 'math',
+    available: false
+  },
+  {
+    id: 'gonogo',
+    name: 'Go / No-Go',
+    desc: 'Nur bei bestimmtem Reiz reagieren',
+    icon: '🚦',
+    cat: 'react',
+    available: false
+  },
+  {
+    id: 'circuits',
+    name: 'Stromkreise',
+    desc: 'Leuchtet die Lampe? Schalter & Schaltungen',
+    icon: '💡',
+    cat: 'tech',
+    available: false
+  },
+];
+
+// =============================================
+// MATH ENGINE
+// =============================================
+function mathEngine() {
+  const ROUNDS = { easy: 8, medium: 12, hard: 16 };
+  const TIME = { easy: 10000, medium: 7000, hard: 5000 };
+
+  function genProblem(diff) {
+    const ops = diff === 'easy' ? ['+','-'] : diff === 'medium' ? ['+','-','×'] : ['+','-','×','÷'];
+    const op = ops[Math.floor(Math.random()*ops.length)];
+    let a, b, answer;
+    if (op === '+') {
+      a = rand(diff === 'easy' ? 5 : diff === 'medium' ? 20 : 50,
+                diff === 'easy' ? 20 : diff === 'medium' ? 99 : 999);
+      b = rand(diff === 'easy' ? 5 : 10, diff === 'easy' ? 20 : diff === 'medium' ? 50 : 200);
+      answer = a + b;
+    } else if (op === '-') {
+      a = rand(10, diff === 'easy' ? 30 : diff === 'medium' ? 99 : 200);
+      b = rand(1, a);
+      answer = a - b;
+    } else if (op === '×') {
+      a = rand(2, diff === 'medium' ? 12 : 25);
+      b = rand(2, diff === 'medium' ? 9 : 15);
+      answer = a * b;
+    } else {
+      b = rand(2, diff === 'hard' ? 12 : 9);
+      answer = rand(2, diff === 'hard' ? 20 : 10);
+      a = b * answer;
+    }
+    return { a, b, op, answer };
+  }
+
+  function genOptions(answer) {
+    const opts = new Set([answer]);
+    while (opts.size < 4) {
+      const delta = rand(-Math.max(5, Math.round(answer*0.3)), Math.max(5, Math.round(answer*0.3)));
+      if (delta !== 0) opts.add(answer + delta);
+    }
+    return shuffle([...opts]);
+  }
+
+  return {
+    rounds: ROUNDS,
+    start(diff, body, onDone) {
+      const total = ROUNDS[diff];
+      let round = 0, correct = 0, timerInterval, timeLeft;
+
+      function render() {
+        if (round >= total) { onDone({ correct, total, label: `${correct}/${total} richtig` }); return; }
+        const { a, b, op, answer } = genProblem(diff);
+        const options = genOptions(answer);
+        const t = TIME[diff];
+        timeLeft = t;
+        updateProgress(round, total);
+
+        body.innerHTML = `
+          <div class="round-info">Aufgabe ${round+1} von ${total}</div>
+          <div class="timer-row" style="width:100%;max-width:320px">
+            <div class="timer-display" id="t-disp">${(t/1000).toFixed(1)}s</div>
+            <div class="timer-bar"><div class="timer-fill" id="t-fill" style="width:100%"></div></div>
+          </div>
+          <div class="streak-row" id="streak-row"></div>
+          <div class="math-problem">${a} ${op} ${b} = ?</div>
+          <div class="math-options" id="opts"></div>
+        `;
+        renderStreak(correct, round);
+
+        const optsEl = body.querySelector('#opts');
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          btn.textContent = opt;
+          btn.onclick = () => pick(opt === answer, answer, options, btn, a, b, op);
+          optsEl.appendChild(btn);
+        });
+
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          timeLeft -= 100;
+          const pct = Math.max(0, (timeLeft/t)*100);
+          const fill = document.getElementById('t-fill');
+          const disp = document.getElementById('t-disp');
+          if (fill) { fill.style.width = pct+'%'; if(pct < 25) fill.classList.add('urgent'); }
+          if (disp) disp.textContent = Math.max(0, timeLeft/1000).toFixed(1)+'s';
+          if (timeLeft <= 0) { clearInterval(timerInterval); timeout(answer, options, a, b, op); }
+        }, 100);
+      }
+
+      function pick(isCorrect, answer, options, btn, a, b, op) {
+        clearInterval(timerInterval);
+        document.querySelectorAll('.option-btn').forEach(b => b.onclick = null);
+        if (isCorrect) {
+          btn.classList.add('correct');
+          correct++;
+          round++;
+          showFeedback(true, `${a} ${op} ${b} = ${answer}`, null, render);
+        } else {
+          btn.classList.add('wrong');
+          document.querySelectorAll('.option-btn').forEach(b => { if(+b.textContent === answer) b.classList.add('correct'); });
+          round++;
+          showFeedback(false, `Die richtige Antwort war ${answer}`, `${a} ${op} ${b} = ${answer}`, render);
+        }
+      }
+
+      function timeout(answer, options, a, b, op) {
+        document.querySelectorAll('.option-btn').forEach(b => { b.onclick = null; if(+b.textContent === answer) b.classList.add('correct'); });
+        round++;
+        showFeedback(false, `Zeit abgelaufen! Antwort: ${answer}`, `${a} ${op} ${b} = ${answer}`, render);
+      }
+
+      render();
+    }
+  };
+}
+
+// =============================================
+// REACTION ENGINE
+// =============================================
+function reactionEngine() {
+  const ROUNDS = { easy: 5, medium: 7, hard: 10 };
+  const MIN_WAIT = { easy: 1500, medium: 1000, hard: 700 };
+  const MAX_WAIT = { easy: 4000, medium: 3000, hard: 2500 };
+
+  return {
+    rounds: ROUNDS,
+    start(diff, body, onDone) {
+      const total = ROUNDS[diff];
+      let round = 0, times = [], timer = null;
+
+      function render() {
+        if (round >= total) {
+          const avg = Math.round(times.reduce((a,b)=>a+b,0)/times.length);
+          const best = Math.min(...times);
+          onDone({ correct: total, total, label: `Ø ${avg} ms · Best ${best} ms`, avg, best, times });
+          return;
+        }
+        updateProgress(round, total);
+        body.innerHTML = `
+          <div class="round-info">Versuch ${round+1} von ${total}</div>
+          <div class="reaction-area" id="r-area" style="cursor:default">
+            <div style="font-size:36px">⏳</div>
+            <div class="reaction-label">Warte auf Signal…</div>
+          </div>
+          <div style="margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--muted)">Drücke wenn GRÜN erscheint</div>
+        `;
+        const area = body.querySelector('#r-area');
+        let startTime, state = 'waiting';
+
+        const wait = MIN_WAIT[diff] + Math.random() * (MAX_WAIT[diff] - MIN_WAIT[diff]);
+        timer = setTimeout(() => {
+          state = 'go';
+          startTime = Date.now();
+          area.className = 'reaction-area go';
+          area.innerHTML = `<div style="font-size:48px">🟢</div><div class="reaction-label">JETZT!</div>`;
+          area.style.cursor = 'pointer';
+        }, wait);
+
+        area.addEventListener('click', () => {
+          if (state === 'waiting') {
+            clearTimeout(timer);
+            state = 'early';
+            area.className = 'reaction-area too-early';
+            area.innerHTML = `<div style="font-size:36px">❌</div><div class="reaction-label">Zu früh! Warte auf Grün</div>`;
+            setTimeout(render, 1400);
+          } else if (state === 'go') {
+            const rt = Date.now() - startTime;
+            times.push(rt);
+            round++;
+            state = 'result';
+            area.className = 'reaction-area result';
+            area.innerHTML = `
+              <div class="reaction-time">${rt}</div>
+              <div class="reaction-unit">Millisekunden</div>
+            `;
+            const msg = rt < 200 ? 'Blitzschnell! ⚡' : rt < 300 ? 'Sehr gut! 👍' : rt < 400 ? 'Gut — weiter üben' : 'Etwas langsam — fokussieren';
+            setTimeout(() => { showFeedback(rt < 400, msg, `Piloten anstreben ≤ 250 ms Reaktionszeit`, render); }, 900);
+          }
+        });
+      }
+      render();
+    }
+  };
+}
+
+// =============================================
+// DIGIT SPAN ENGINE
+// =============================================
+function digitSpanEngine() {
+  const START_LEN = { easy: 4, medium: 5, hard: 6 };
+  const ROUNDS = { easy: 6, medium: 8, hard: 10 };
+
+  return {
+    rounds: ROUNDS,
+    start(diff, body, onDone) {
+      const total = ROUNDS[diff];
+      let round = 0, correct = 0;
+
+      function render() {
+        if (round >= total) { onDone({ correct, total, label: `${correct}/${total} richtig` }); return; }
+        const len = START_LEN[diff] + Math.floor(round/2);
+        updateProgress(round, total);
+        const seq = Array.from({length: len}, () => rand(1,9));
+        showSequence(seq);
+      }
+
+      function showSequence(seq) {
+        body.innerHTML = `
+          <div class="round-info">Runde ${round+1} von ${total} · Länge: ${seq.length}</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--muted2);margin-bottom:12px">Merke dir die Ziffern</div>
+          <div class="digit-display" id="d-display"></div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px" id="d-status">Einprägen…</div>
+        `;
+        const disp = body.querySelector('#d-display');
+        seq.forEach((d,i) => {
+          const cell = document.createElement('div');
+          cell.className = 'digit-cell hidden-cell';
+          cell.textContent = d;
+          disp.appendChild(cell);
+        });
+
+        // Show one by one
+        let i = 0;
+        const showNext = () => {
+          if (i > 0) disp.children[i-1].classList.remove('show');
+          if (i < seq.length) {
+            disp.children[i].classList.add('show');
+            i++;
+            setTimeout(showNext, diff === 'hard' ? 600 : diff === 'medium' ? 800 : 1000);
+          } else {
+            // Hide all, show input
+            setTimeout(() => startInput(seq), 500);
+          }
+        };
+        showNext();
+      }
+
+      function startInput(seq) {
+        body.innerHTML = `
+          <div class="round-info">Runde ${round+1} von ${total}</div>
+          <div style="font-family:var(--mono);font-size:13px;color:var(--muted2);margin-bottom:12px">Gib die Ziffern ein</div>
+          <div class="digit-display" id="d-display"></div>
+          <div class="digit-keypad" id="keypad"></div>
+        `;
+        const disp = body.querySelector('#d-display');
+        let entered = [];
+
+        const updateDisplay = () => {
+          disp.innerHTML = '';
+          seq.forEach((d,i) => {
+            const cell = document.createElement('div');
+            cell.className = 'digit-cell';
+            cell.textContent = entered[i] !== undefined ? entered[i] : '';
+            if (entered[i] !== undefined) cell.classList.add('show');
+            disp.appendChild(cell);
+          });
+        };
+        updateDisplay();
+
+        // Keypad
+        const keypad = body.querySelector('#keypad');
+        [1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].forEach(k => {
+          const btn = document.createElement('button');
+          btn.className = 'key-btn' + (k==='⌫' ? ' del' : '');
+          btn.textContent = k;
+          btn.onclick = () => {
+            if (k === '⌫') { entered.pop(); updateDisplay(); }
+            else if (k === '✓') { if (entered.length === seq.length) check(seq, entered); }
+            else if (entered.length < seq.length) { entered.push(k); updateDisplay(); if(entered.length === seq.length) check(seq, entered); }
+          };
+          keypad.appendChild(btn);
+        });
+      }
+
+      function check(seq, entered) {
+        const disp = body.querySelector('#d-display');
+        let ok = true;
+        disp.innerHTML = '';
+        seq.forEach((d,i) => {
+          const cell = document.createElement('div');
+          const match = entered[i] == d;
+          cell.className = 'digit-cell ' + (match ? 'correct-cell' : 'wrong-cell');
+          cell.textContent = entered[i] !== undefined ? entered[i] : '_';
+          disp.appendChild(cell);
+          if (!match) ok = false;
+        });
+        body.querySelector('#keypad').innerHTML = '';
+        round++;
+        if (ok) correct++;
+        setTimeout(() => {
+          showFeedback(ok,
+            ok ? 'Perfekt!' : 'Nicht ganz…',
+            `Sequenz war: ${seq.join(' – ')}`,
+            render);
+        }, 700);
+      }
+
+      render();
+    }
+  };
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function rand(a, b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function shuffle(arr) { for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+function updateProgress(done, total) {
+  const fill = document.getElementById('progress-fill');
+  if (fill) fill.style.width = (done/total*100)+'%';
+}
+
+function renderStreak(correct, round) {
+  const el = document.getElementById('streak-row');
+  if (!el) return;
+  el.innerHTML = Array.from({length: round}, (_,i) => `<div class="streak-dot correct"></div>`).join('') +
+    Array.from({length: Math.max(0, 8-round)}, () => `<div class="streak-dot"></div>`).join('');
+}
+
+// =============================================
+// FEEDBACK OVERLAY
+// =============================================
+function showFeedback(ok, msg, explanation, onNext) {
+  const overlay = document.createElement('div');
+  overlay.className = 'feedback-overlay';
+  overlay.innerHTML = `
+    <div class="feedback-icon">${ok ? '✅' : '❌'}</div>
+    <div class="feedback-title" style="color:${ok ? 'var(--accent)' : 'var(--danger)'}">${ok ? 'Richtig!' : 'Falsch'}</div>
+    <div class="feedback-sub">${msg}</div>
+    ${explanation ? `<div class="feedback-explanation"><div class="explanation-label">Erklärung</div><div class="explanation-text">${explanation}</div></div>` : ''}
+    <button class="primary-btn" id="fb-next">Weiter →</button>
+  `;
+  document.getElementById('screen-training').appendChild(overlay);
+  document.getElementById('fb-next').onclick = () => { overlay.remove(); onNext(); };
+}
+
+// =============================================
+// SESSION DONE
+// =============================================
+function showSessionDone(mod, result) {
+  const data = loadData();
+  const prev = data.bests[mod.id];
+  const score = result.correct;
+
+  // Save history
+  data.history.unshift({ id: mod.id, name: mod.name, icon: mod.icon, diff: difficulty, score, total: result.total, label: result.label, ts: Date.now() });
+  data.history = data.history.slice(0, 50);
+
+  if (!prev || score > (prev[difficulty] || 0)) {
+    if (!data.bests[mod.id]) data.bests[mod.id] = {};
+    data.bests[mod.id][difficulty] = score;
+  }
+  saveData(data);
+  renderModuleList();
+
+  const body = document.getElementById('training-body');
+  body.innerHTML = `
+    <div class="feedback-icon">🏆</div>
+    <div class="score-big">${score}/${result.total}</div>
+    <div class="score-label">${result.label}</div>
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px">
+      <button class="primary-btn" onclick="startModule('${mod.id}')">Nochmal ↗</button>
+      <button class="secondary-btn" onclick="showScreen('home')">Zur Übersicht</button>
+    </div>
+  `;
+  document.getElementById('progress-fill').style.width = '100%';
+}
+
+// =============================================
+// MODULE START
+// =============================================
+function startModule(id) {
+  const mod = MODULES.find(m => m.id === id);
+  if (!mod || !mod.available) return;
+  currentModule = mod;
+
+  showScreen('training');
+  document.getElementById('training-title').textContent = mod.name;
+  document.getElementById('training-diff-chip').textContent = difficulty.toUpperCase();
+  document.getElementById('training-back').onclick = () => {
+    if (confirm('Training abbrechen?')) showScreen('home');
+  };
+  document.getElementById('progress-fill').style.width = '0%';
+
+  const body = document.getElementById('training-body');
+  body.innerHTML = '';
+
+  mod.engine.start(difficulty, body, (result) => showSessionDone(mod, result));
+}
+
+// =============================================
+// SCREENS
+// =============================================
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = document.getElementById('nav-'+name);
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('bottom-nav').style.display = name === 'training' ? 'none' : 'flex';
+  if (name === 'stats') renderStats();
+}
+
+// =============================================
+// DIFFICULTY
+// =============================================
+function setDiff(d) {
+  difficulty = d;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// =============================================
+// RENDER MODULE LIST
+// =============================================
+function renderModuleList() {
+  const data = loadData();
+  const list = document.getElementById('module-list');
+  list.innerHTML = '';
+  MODULES.forEach(mod => {
+    const best = data.bests[mod.id]?.[difficulty];
+    const card = document.createElement('div');
+    card.className = `module-card cat-${mod.cat}${mod.available ? '' : ' locked'}`;
+    card.innerHTML = `
+      <div class="module-icon">${mod.icon}</div>
+      <div class="module-info">
+        <div class="module-name">${mod.name}</div>
+        <div class="module-desc">${mod.desc}</div>
+        <div class="module-meta">
+          ${best !== undefined ? `<div class="module-best">Best (${difficulty}): ${best}/${mod.engine?.rounds?.[difficulty] || '?'}</div>` : ''}
+          ${!mod.available ? '<div class="coming-badge">BALD VERFÜGBAR</div>' : ''}
+          ${!mod.available ? '<div class="lock-badge">🔒</div>' : ''}
+        </div>
+      </div>
+    `;
+    if (mod.available) card.onclick = () => startModule(mod.id);
+    list.appendChild(card);
+  });
+}
+
+// =============================================
+// RENDER STATS
+// =============================================
+function renderStats() {
+  const data = loadData();
+  const hist = data.history;
+  const total = hist.length;
+  const correct = hist.reduce((sum, h) => sum + (h.score||0), 0);
+  const totalQ = hist.reduce((sum, h) => sum + (h.total||0), 0);
+  const pct = totalQ > 0 ? Math.round(correct/totalQ*100) : 0;
+
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = `
+    <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-lbl">Sessions</div></div>
+    <div class="stat-card"><div class="stat-val">${pct}%</div><div class="stat-lbl">Trefferquote</div></div>
+    <div class="stat-card"><div class="stat-val">${totalQ}</div><div class="stat-lbl">Aufgaben gesamt</div></div>
+    <div class="stat-card"><div class="stat-val">${correct}</div><div class="stat-lbl">Richtig gesamt</div></div>
+  `;
+
+  const hlist = document.getElementById('history-list');
+  hlist.innerHTML = hist.length === 0
+    ? '<div style="padding:24px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:13px">Noch keine Sessions</div>'
+    : hist.slice(0,20).map(h => `
+        <div class="history-item">
+          <div class="history-icon">${h.icon}</div>
+          <div>
+            <div class="history-name">${h.name}</div>
+            <div class="history-meta">${h.diff?.toUpperCase()} · ${new Date(h.ts).toLocaleDateString('de-DE')}</div>
+          </div>
+          <div class="history-score">${h.score}/${h.total}</div>
+        </div>`).join('');
+}
+
+// =============================================
+// INIT
+// =============================================
+renderModuleList();
+</script>
+</body>
+</html>
